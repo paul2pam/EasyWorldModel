@@ -2,22 +2,22 @@ import torch.nn as nn
 import torch
 
 from encoder import Encoder
-
+from decoder import Decoder
 
 # Legend: 
-#   e = encoded state of the environment
-#   h = recurrent state 
-#   z = discrete representation of current state
+#   e = encoded observation             (output of Encoder)
+#   h = deterministic recurrent state   (output of GRU)
+#   z = stochastic discrete latent state    (output of Dynamics/Representation)
 #   a = action vector
 
 # Representation model
 class Posterior(nn.Module):
-    def __init__(self, embed_dim, deter_dim):
+    def __init__(self, embed_dim, deter_dim, hidden_dim=512):
         super().__init__()
         self.embed_dim = embed_dim  
         self.deter_dim = deter_dim
         self.total_dim = embed_dim + deter_dim
-        self.hidden_dim = 512               #TODO: un-hardcode
+        self.hidden_dim = hidden_dim               
         self.stoch_dim = 512                #TODO: un-hardcode
 
         self.mlp = nn.Sequential(
@@ -37,10 +37,10 @@ class Posterior(nn.Module):
 
 # Dynamics predictor
 class Prior(nn.Module):
-    def __init__(self, deter_dim):
+    def __init__(self, deter_dim, hidden_dim=512):
         super().__init__()
         self.deter_dim = deter_dim
-        self.hidden_dim = 512          #TODO:un-hardcode
+        self.hidden_dim = hidden_dim          #TODO:un-hardcode
         self.stoch_dim = 512            #TODO:un-hardcode
 
         self.mlp = nn.Sequential(
@@ -55,12 +55,12 @@ class Prior(nn.Module):
         return z
         
 class SequenceModel(nn.Module):     #Not true to paper, this uses a regular GRUcell, not the block diagonal version
-    def __init__(self, deter_dim, discrete_dim, action_dim):
+    def __init__(self, action_dim, deter_dim, discrete_dim, hidden_dim=512):
         super().__init__()
         self.deter_dim = deter_dim
         self.discrete_dim = discrete_dim
         self.action_dim = action_dim
-        self.hidden_dim = 512
+        self.hidden_dim = hidden_dim
 
         self.linear = nn.Linear(self.discrete_dim + self.action_dim, self.hidden_dim)
         self.gru = nn.GRUCell(self.hidden_dim, self.deter_dim)
@@ -75,10 +75,12 @@ class RSSM(nn.Module):
 
     def __init__(self, embed_dim, hidden_dim, deter_dim, discrete_dim, action_dim):
         super().__init__()
-        self.sequence        = SequenceModel(deter_dim, discrete_dim, action_dim)
+        self.sequence        = SequenceModel(action_dim, deter_dim, discrete_dim, hidden_dim)
         self.dynamics        = Prior(deter_dim)
         self.representation  = Posterior(embed_dim, deter_dim)
+
         self.encoder         = Encoder(embed_dim)
+        self.decoder         = Decoder(deter_dim, discrete_dim)
 
         self.deter_dim = deter_dim
         self.discrete_dim = discrete_dim
