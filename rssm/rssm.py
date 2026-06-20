@@ -12,13 +12,14 @@ from decoder import Decoder
 
 # Representation model
 class Posterior(nn.Module):
-    def __init__(self, embed_dim, deter_dim, hidden_dim=512):
+    def __init__(self, embed_dim, deter_dim, discrete_dim, hidden_dim=512):
         super().__init__()
         self.embed_dim = embed_dim  
         self.deter_dim = deter_dim
         self.total_dim = embed_dim + deter_dim
-        self.hidden_dim = hidden_dim               
-        self.stoch_dim = 512                #TODO: un-hardcode
+
+        self.discrete_dim = discrete_dim 
+        self.hidden_dim = hidden_dim              
 
         self.mlp = nn.Sequential(
             nn.Linear(self.total_dim, self.hidden_dim),
@@ -37,12 +38,12 @@ class Posterior(nn.Module):
 
 # Dynamics predictor
 class Prior(nn.Module):
-    def __init__(self, deter_dim, hidden_dim=512):
+    def __init__(self, deter_dim, discrete_dim, hidden_dim):
         super().__init__()
         self.deter_dim = deter_dim
-        self.hidden_dim = hidden_dim          #TODO:un-hardcode
-        self.stoch_dim = 512            #TODO:un-hardcode
-
+        self.discrete_dim = discrete_dim
+        self.hidden_dim = hidden_dim
+        
         self.mlp = nn.Sequential(
             nn.Linear(self.deter_dim, self.hidden_dim),
             nn.LayerNorm(self.hidden_dim),
@@ -101,3 +102,6 @@ class RSSM(nn.Module):
         h_new = self.sequence(h, z, a)
         z_new = self.dynamics(h)
         return h_new, z_new
+    
+    def decode(self, h, z):
+        return self.decoder(h, z)
