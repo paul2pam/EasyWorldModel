@@ -26,24 +26,3 @@ class Encoder(nn.Module):
         e = self.convs(x)
         return e
     
-class Posterior(nn.Module):
-    def __init__(self, embed_dim, deter_dim):
-        super().__init__()
-        self.embed_dim = embed_dim  
-        self.deter_dim = deter_dim
-        self.total_dim = embed_dim + deter_dim
-        self.hidden_dim = 512               #TODO: un-hardcode
-        self.stoch_dim = 512                #TODO: un-hardcode
-
-        self.mlp = nn.Sequential(
-            nn.Linear(self.total_dim, self.hidden_dim),
-            nn.LayerNorm(self.hidden_dim),
-            nn.SiLU(),
-            nn.Linear(self.hidden_dim, self.stoch_dim)
-        )
-        
-
-    def forward(self, e, h):
-        z = torch.cat((e, h), dim=-1)
-        z = self.mlp(z)
-        return z
