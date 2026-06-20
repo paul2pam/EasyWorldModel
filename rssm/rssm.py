@@ -10,6 +10,7 @@ from encoder import Encoder
 #   z = discrete representation of current state
 #   a = action vector
 
+# Representation model
 class Posterior(nn.Module):
     def __init__(self, embed_dim, deter_dim):
         super().__init__()
@@ -34,6 +35,7 @@ class Posterior(nn.Module):
     
 
 
+# Dynamics predictor
 class Prior(nn.Module):
     def __init__(self, deter_dim):
         super().__init__()
@@ -71,18 +73,29 @@ class SequenceModel(nn.Module):     #Not true to paper, this uses a regular GRUc
 
 class RSSM(nn.Module):
 
-    def __init__(self):
+    def __init__(self, embed_dim, hidden_dim, deter_dim, discrete_dim, action_dim):
         super().__init__()
-        self.sequence = SequenceModel()
-        self.prior = Prior()
-        self.posterior = Posterior()
-        self.encoder = Encoder()
-    
+        self.sequence        = SequenceModel(deter_dim, discrete_dim, action_dim)
+        self.dynamics        = Prior(deter_dim)
+        self.representation  = Posterior(embed_dim, deter_dim)
+        self.encoder         = Encoder(embed_dim)
+
+        self.deter_dim = deter_dim
+        self.discrete_dim = discrete_dim
+        self.action_dim = action_dim
+
     def initial(self, batch_size):
-        return
+        device = next(self.parameters()).device
+        h = torch.zeros(batch_size, self.deter_dim, device=device)
+        z = torch.zeros(batch_size, self.discrete_dim, device=device)
+        return h, z
 
     def observation_step(self, h, z, a, e):
-        return
+        h_new = self.sequence(h, z, a)
+        z_new = self.representation(e, h)
+        return h_new, z_new
 
     def imagination_step(self, h, z, a):
-        return z
+        h_new = self.sequence(h, z, a)
+        z_new = self.dynamics(h)
+        return h_new, z_new
